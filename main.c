@@ -1,6 +1,4 @@
 #include <stdio.h>
-#include <memory.h>
-#include <stdlib.h>
 #include <stdint.h>
 
 #include <windows.h>
@@ -14,50 +12,77 @@ int main(int argc, char *argv[]) {
         goto retn;
     }
 
-    uint8_t *initializationVector = 0;
-    uint8_t *buffer = 0;
-
-    size_t numConverted;
-    size_t wideStrSize = 256;
-    wchar_t *wideStr = malloc(wideStrSize);
-    mbstowcs_s(&numConverted, wideStr, wideStrSize / 2, argv[1], wideStrSize);
     FILE *stream;
-    errno_t openResult = _wfopen_s(
-            &stream,
-            wideStr,
-            L"rb"
-    );
-
+    errno_t openResult = fopen_s(&stream, argv[1], "rb");
     if (openResult != 0) {
-        printf("It didn't work :(\n");
-        return 1;
+        char errBuffer[128];
+        if (!strerror_s(errBuffer, 128, openResult)) {
+            puts(errBuffer);
+        } else {
+            puts("Failed to open file\n");
+        }
+        goto retn;
     }
 
-    fseek(stream, 0, SEEK_END);
-    long filePos = ftell(stream);
+    if (fseek(stream, 0, SEEK_END) != 0) {
+        puts("Failed to seek to EOF\n");
+        fclose(stream);
+        goto retn;
+    }
+
+    long fileSize = ftell(stream);
+
+    if (fileSize < 0) {
+        puts("Failed to read current file position\n");
+        fclose(stream);
+        goto retn;
+    }
+
+    if (fileSize <= 22) {
+        puts("Your file is much too small\n");
+        fclose(stream);
+        goto retn;
+    }
+
     rewind(stream);
 
-    if (filePos <= 6) {
-        buffer = 0;
+    size_t rbsVerSize = 6;
+    char * const rbsVer = malloc(rbsVerSize + 1); // Room for null term char
+    memset(rbsVer, 0, rbsVerSize + 1);
+    size_t numRead = fread_s(rbsVer, rbsVerSize, 1, rbsVerSize, stream);
+    if (numRead < rbsVerSize) {
+        puts("Failed to read RBS version\n");
         fclose(stream);
-    } else {
-        uint8_t *v14 = malloc(6);
-        memset(v14, 0, 6);
-        buffer = v14;
-        fread(buffer, 1, 6, stream);
-        filePos -= 6;
+        goto retn;
+    }
+    fileSize -= rbsVerSize;
 
-        uint8_t *v16 = malloc(16);
-        initializationVector = v16;
-        memset(v16, 0, 16);
-        fread(initializationVector, 1, 16, stream);
-        filePos -= 16;
-
+    if (strcmp(rbsVer, "RBS2.0") != 0) {
+        printf("RBS version %s not supported\n", rbsVer);
+        fclose(stream);
+        goto retn;
     }
 
-    BYTE *encryptedRuby = malloc(filePos);;
-    memset(encryptedRuby, 0, filePos);
-    fread(encryptedRuby, 1, filePos, stream);
+    size_t initVectorSize = 16;
+    uint8_t * const initVector = malloc(initVectorSize);
+    memset(initVector, 0, initVectorSize);
+    numRead = fread_s(initVector, initVectorSize, 1, initVectorSize, stream);
+    if (numRead < initVectorSize) {
+        puts("Failed to read initialization vector");
+        fclose(stream);
+        goto retn;
+    }
+    fileSize -= initVectorSize;
+
+    BYTE * const encryptedRuby = malloc(fileSize + 1); // Room for null term char
+    memset(encryptedRuby, 0, fileSize + 1);
+    numRead = fread_s(encryptedRuby, fileSize, 1, fileSize, stream);
+    if (numRead < fileSize) {
+        puts("Failed to read encrypted Ruby code");
+        fclose(stream);
+        goto retn;
+    }
+
     fclose(stream);
 
     HCRYPTPROV hProv;
@@ -88,15 +113,17 @@ int main(int argc, char *argv[]) {
         goto release_key;
     }
 
-    if (!CryptSetKeyParam(hKey, KP_IV, initializationVector, 0)) {
+    if (!CryptSetKeyParam(hKey, KP_IV, initVector, 0)) {
         log_win32_error("CryptSetKeyParam(KP_IV)");
         goto release_key;
     }
 
-    if (!CryptDecrypt(hKey, 0, TRUE, 0, encryptedRuby, &filePos)) {
+    if (!CryptDecrypt(hKey, 0, TRUE, 0, encryptedRuby, &fileSize)) {
         log_win32_error("CryptDecrypt");
         goto release_key;
     }
+
+    puts(encryptedRuby);
 
 release_key:
     if (!CryptDestroyKey(hKey)) {
@@ -109,9 +136,7 @@ release_context:
     }
 
 end:
-    puts(encryptedRuby);
-    free(buffer);
-    free(initializationVector);
+    free(initVector);
     free(encryptedRuby);
 
 retn:
@@ -130,8 +155,7 @@ void log_win32_error(const char *funcName) {
             0,
             NULL
     )) {
-        printf("%s failed with error: ", funcName);
-        puts(lpBuffer);
+        printf("%s failed with error: %s", funcName, lpBuffer);
     } else {
         printf("%s failed with error: %lu\n", funcName, messageId);
     }
