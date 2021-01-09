@@ -9,6 +9,11 @@
 void log_win32_error(const char *funcName);
 
 int main(int argc, char *argv[]) {
+    if (argc < 2) {
+        puts("No file name specified\n");
+        goto retn;
+    }
+
     uint8_t *initializationVector = 0;
     uint8_t *buffer = 0;
 
@@ -109,6 +114,7 @@ end:
     free(initializationVector);
     free(encryptedRuby);
 
+retn:
     return 0;
 }
 
