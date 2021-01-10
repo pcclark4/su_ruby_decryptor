@@ -15,7 +15,9 @@ int main(int argc, char *argv[]) {
     errno_t openResult = fopen_s(&stream, argv[1], "rb");
     if (openResult != 0) {
         char errBuffer[128];
-        if (!strerror_s(errBuffer, 128, openResult)) {
+        // Disabling lint for following line, as the overload used here DOES
+        // in fact result in a null terminated string
+        if (!strerror_s(errBuffer, 128, openResult)) { // NOLINT(bugprone-not-null-terminated-result)
             puts(errBuffer);
         } else {
             puts("Failed to open file\n");
