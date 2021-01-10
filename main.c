@@ -2,7 +2,6 @@
 #include <stdint.h>
 
 #include <windows.h>
-#include <wincrypt.h>
 
 void log_win32_error(const char *funcName);
 
