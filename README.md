@@ -9,6 +9,7 @@ A tiny CLI that decrypts Sketchup's RBE/RBS file format into plain Ruby. This on
 * Navigate to the root source code directory
 * `cmake .`
 * `cmake --build .`
+  * Alternatively, you could open the generated `.sln` file with `Visual Studio`
 * `su_ruby_decryptor.exe` will be in the `Debug` sub-directory
 * Open cmd or powershell and use the command `.\su_ruby_decryptor.exe "path-to-rbe-or-rbs-file"`
   * Add ` > output_file_name.rb` to this command to write the output to a file
