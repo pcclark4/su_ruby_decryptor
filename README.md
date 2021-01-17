@@ -1,5 +1,5 @@
 # su_ruby_decryptor
-A tiny CLI that decrypts Sketchup's RBE/RBS file format into plain Ruby. This only supports RBS version 2.0, so older encrypted files are not supported (for now).
+A tiny CLI that decrypts Sketchup's RBE/RBS file format into plain Ruby. **This only supports RBS version 2.0, so older encrypted files are not supported (for now).**
 
 ## How to build
 * You must have at least `Visual Studio 2017` installed (haven't tested it on anything else)
