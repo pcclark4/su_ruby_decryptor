@@ -1,7 +1,10 @@
 #include <stdio.h>
 #include <stdint.h>
+#include <stdlib.h>
 
+#define WIN32_LEAN_AND_MEAN
 #include <windows.h>
+#include <Wincrypt.h>
 
 void log_win32_error(const char *funcName);
 
